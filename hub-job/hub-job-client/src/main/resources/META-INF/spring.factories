@@ -1,0 +1,4 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.cowave.hub.job.client.configuration.JobConfiguration
+
+

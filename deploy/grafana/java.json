@@ -3148,8 +3148,8 @@
       {
         "current": {
           "selected": false,
-          "text": "sys-blog",
-          "value": "sys-blog"
+          "text": "hub-blog",
+          "value": "hub-blog"
         },
         "datasource": {
           "type": "prometheus",

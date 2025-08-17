@@ -1,7 +1,7 @@
 groups:
-  - name: sys日志ERROR
+  - name: hub日志ERROR
     rules:
-    - alert: sys-error-log
+    - alert: hub-error-log
       expr: count_over_time(({job="log-sys"}|~"ERROR")[10m]) > 0
       for: 10m
       labels:

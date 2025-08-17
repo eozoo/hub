@@ -1,0 +1,79 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0.txt
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and limitations under the License.
+ */
+package com.cowave.hub.meter.domain.torna.bean;
+
+import com.cowave.hub.meter.domain.api.ApiFolder;
+
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author tanghc
+ */
+public class RequestContext extends ConcurrentHashMap<String, Object> {
+
+    protected static final ThreadLocal<? extends RequestContext> THREAD_LOCAL = ThreadLocal.withInitial(RequestContext::new);
+
+    private static final String MODULE_KEY = "api-module-obj";
+    private static final String API_USER_KEY = "api-user-obj";
+    private static final String TOKEN_KEY = "api-token";
+    private static final String IP_KEY = "api-client-ip";
+
+    /**
+     * Get the current RequestContext
+     *
+     * @return the current RequestContext
+     */
+    public static RequestContext getCurrentContext() {
+        return THREAD_LOCAL.get();
+    }
+
+    public void setToken(String token) {
+        put(TOKEN_KEY, token);
+    }
+
+    public String getToken() {
+        return (String) get(TOKEN_KEY);
+    }
+
+    public ApiFolder getModule() {
+        return (ApiFolder) this.get(MODULE_KEY);
+    }
+
+    public long getModuleId() {
+        return getModule().getId();
+    }
+
+    public void setModule(ApiFolder apiFolder) {
+        this.put(MODULE_KEY, apiFolder);
+    }
+
+    public void setApiUser(User apiUser) {
+        this.put(API_USER_KEY, apiUser);
+    }
+
+    public User getApiUser() {
+        return (User) get(API_USER_KEY);
+    }
+
+    public void reset() {
+        THREAD_LOCAL.remove();
+    }
+
+    public void setIp(String ip) {
+        put(IP_KEY, ip);
+    }
+
+    public String getIp() {
+        return (String) get(IP_KEY);
+    }
+}

@@ -1,9 +1,9 @@
 version: '3'
 
 services:
-  sys-ui:
-    image: sys-ui:1.0.3
-    container_name: sys-ui
+  hub-ui:
+    image: hub-ui:1.0.3
+    container_name: hub-ui
     ports:
       - 81:81
       - 82:82
@@ -12,7 +12,7 @@ services:
       - 85:85
       - 86:86
     volumes:
-      - ./sys-ui:/var/log/nginx
+      - ./hub-ui:/var/log/nginx
       - /etc/localtime:/etc/localtime
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:81"]
@@ -20,20 +20,246 @@ services:
       timeout: 3s
       retries: 10
     depends_on:
-      sys-gateway:
+      hub-gateway:
         condition: service_healthy
     networks:
       default:
-        ipv4_address: 192.168.64.10
+        ipv4_address: 10.64.32.10
 
-  sys-nacos:
-    image: sys-nacos:2.3.0
-    container_name: sys-nacos
+  hub-gateway:
+    image: hub-gateway:1.0.3
+    container_name: hub-gateway
+    ports:
+      - 19000:19000
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError
+      http_port: 19000
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      redis_host: hub-redis
+      redis_port: 6379
+    volumes:
+      - ./hub-gateway:/opt/cowave/hub-gateway/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19000/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-nacos:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.12
+
+  hub-blog:
+    image: hub-blog:1.0.3
+    container_name: hub-blog
+    ports:
+      - 80:80
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError
+      app_profile: prod
+      http_port: 80
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      redis_host: hub-redis
+      redis_port: 6379
+      datasource_username: postgres
+      datasource_password: postgres
+      datasource_url: jdbc:postgresql://hub-postgres:5432/hub-blog
+      hub_admin_uri: http://10.64.4.74:81
+      oauth_app_id: 6ac6519451ed4ef09431aacccbcb1f5f
+      oauth_app_secret: 4a2e671fbd074f238e80c7f5566f8f7a
+      oauth_app_redirect: http://10.64.4.74/auth/callback
+      oauth_code_uri: http://10.64.4.74:81/oauth/cowave/authorize
+      oauth_token_uri: http://10.64.4.74:19000
+    volumes:
+      - ./hub-blog/log:/opt/cowave/hub-blog/log
+      - ./hub-blog/public:/opt/cowave/hub-blog/public
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-nacos:
+        condition: service_healthy
+      hub-postgres:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.13
+
+  hub-admin:
+    image: hub-admin:1.0.3
+    container_name: hub-admin
+    ports:
+      - 19010:19010
+      - 19011:19011
+      - 19012:19012
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19012
+      app_profile: prod
+      http_port: 19010
+      socket_port: 19011
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      elastic_url: hub-elastic:9200
+      kafka_servers: hub-kafka1:9092,hub-kafka2:9093,hub-kafka3:9094
+      redis_host: hub-redis
+      redis_port: 6379
+      datasource_username: postgres
+      datasource_password: postgres
+      datasource_url: jdbc:postgresql://hub-postgres:5432/hub-admin
+      minio_endpoint: http://10.64.4.74:39000
+      minio_accessKey: admin
+      minio_secretKey: admin123
+    volumes:
+      - ./hub-admin:/opt/cowave/hub-admin/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19010/admin/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-postgres:
+        condition: service_healthy
+      hub-redis:
+        condition: service_healthy
+      hub-elastic:
+        condition: service_healthy
+      hub-nacos:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.14
+
+  hub-flow:
+    image: hub-flow:1.0.3
+    container_name: hub-flow
+    ports:
+      - 19020:19020
+      - 19021:19021
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19021
+      app_profile: prod
+      http_port: 19020
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      datasource_username: postgres
+      datasource_password: postgres
+      datasource_url: jdbc:postgresql://hub-postgres:5432/hub-admin
+    volumes:
+      - ./hub-flow:/opt/cowave/hub-flow/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19020/flow/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-postgres:
+        condition: service_healthy
+      hub-nacos:
+        condition: service_healthy
+      hub-admin:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.15
+
+  hub-meter:
+    image: hub-meter:1.0.3
+    container_name: hub-meter
+    ports:
+      - 19030:19030
+      - 19031:19031
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19031
+      app_profile: prod
+      http_port: 19030
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      datasource_username: postgres
+      datasource_password: postgres
+      datasource_url: jdbc:postgresql://hub-postgres:5432/hub-meter
+    volumes:
+      - ./hub-meter:/opt/cowave/hub-meter/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19030/meter/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-postgres:
+        condition: service_healthy
+      hub-nacos:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.16
+
+  hub-job:
+    image: hub-job:1.0.3
+    container_name: hub-job
+    ports:
+      - 19040:19040
+      - 19041:19041
+    environment:
+      TZ: Asia/Shanghai
+      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19041
+      app_profile: prod
+      http_port: 19040
+      nacos_server: hub-nacos:8848
+      nacos_namespace:
+      nacos_cluster:
+      nacos_group: DEFAULT_GROUP
+      datasource_username: postgres
+      datasource_password: postgres
+      datasource_url: jdbc:postgresql://hub-postgres:5432/hub-job
+    volumes:
+      - ./hub-job:/opt/cowave/hub-job/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19040/job/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      hub-postgres:
+        condition: service_healthy
+      hub-nacos:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.64.32.17
+
+  hub-nacos:
+    image: hub-nacos:2.3.0
+    container_name: hub-nacos
     environment:
       - MODE=standalone
+      - cluster_ip=10.64.4.74
       - DB_POOL_CONFIG_CONNECTIONTIMEOUT=6000000
+      - datasource_username=postgres
+      - datasource_password=postgres
+      - datasource_url=jdbc:postgresql://hub-postgres:5432/nacos?tcpKeepAlive=true&reWriteBatchedInserts=true
     volumes:
-      - ./sys-nacos:/home/nacos/logs
+      - ./hub-nacos:/home/nacos/logs
     ports:
       - "8848:8848"
       - "9848:9848"
@@ -44,232 +270,16 @@ services:
       retries: 20
     networks:
       default:
-        ipv4_address: 192.168.64.11
+        ipv4_address: 10.64.32.11
 
-  sys-gateway:
-    image: sys-gateway:1.0.3
-    container_name: sys-gateway
-    ports:
-      - 19000:19000
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError
-      http_port: 19000
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      redis_host: sys-redis
-      redis_port: 6379
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-gateway:/opt/cowave/sys-gateway/log
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19000/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-nacos:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.12
-
-  sys-blog:
-    image: sys-blog:1.0.3
-    container_name: sys-blog
-    ports:
-      - 80:80
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError
-      app_profile: prod
-      http_port: 80
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      redis_host: sys-redis
-      redis_port: 6379
-      datasource_username: postgres
-      datasource_password: postgres
-      datasource_url: jdbc:postgresql://sys-postgres:5432/sys-blog
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-blog/log:/opt/cowave/sys-blog/log
-      - ./sys-blog/public:/opt/cowave/sys-blog/public
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-nacos:
-        condition: service_healthy
-      sys-postgres:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.13
-
-  sys-admin:
-    image: sys-admin:1.0.3
-    container_name: sys-admin
-    ports:
-      - 19010:19010
-      - 19011:19011
-      - 19012:19012
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19012
-      app_profile: prod
-      http_port: 19010
-      socket_port: 19011
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      elastic_url: sys-elastic:9200
-      kafka_servers: sys-kafka1:9092,sys-kafka2:9093,sys-kafka3:9094
-      redis_host: sys-redis
-      redis_port: 6379
-      datasource_username: postgres
-      datasource_password: postgres
-      datasource_url: jdbc:postgresql://sys-postgres:5432/sys-admin
-      minio_endpoint: http://10.64.4.74:39000
-      minio_accessKey: admin
-      minio_secretKey: admin123
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-admin:/opt/cowave/sys-admin/log
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19010/admin/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-postgres:
-        condition: service_healthy
-      sys-redis:
-        condition: service_healthy
-      sys-elastic:
-        condition: service_healthy
-      sys-nacos:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.14
-
-  sys-flow:
-    image: sys-flow:1.0.3
-    container_name: sys-flow
-    ports:
-      - 19020:19020
-      - 19021:19021
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19021
-      app_profile: prod
-      http_port: 19020
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      datasource_username: postgres
-      datasource_password: postgres
-      datasource_url: jdbc:postgresql://sys-postgres:5432/sys-admin
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-flow:/opt/cowave/sys-flow/log
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19020/flow/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-postgres:
-        condition: service_healthy
-      sys-nacos:
-        condition: service_healthy
-      sys-admin:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.15
-
-  sys-meter:
-    image: sys-meter:1.0.3
-    container_name: sys-meter
-    ports:
-      - 19030:19030
-      - 19031:19031
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19031
-      app_profile: prod
-      http_port: 19030
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      datasource_username: postgres
-      datasource_password: postgres
-      datasource_url: jdbc:postgresql://sys-postgres:5432/sys-meter
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-meter:/opt/cowave/sys-meter/log
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19030/meter/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-postgres:
-        condition: service_healthy
-      sys-nacos:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.16
-
-  sys-job:
-    image: sys-job:1.0.3
-    container_name: sys-job
-    ports:
-      - 19040:19040
-      - 19041:19041
-    environment:
-      jvm_option: -Xms256m -Xmx256m -XX:MetaspaceSize=128m -XX:+HeapDumpOnOutOfMemoryError -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:19041
-      app_profile: prod
-      http_port: 19040
-      nacos_server: sys-nacos:8848
-      nacos_namespace:
-      nacos_cluster:
-      nacos_group: DEFAULT_GROUP
-      datasource_username: postgres
-      datasource_password: postgres
-      datasource_url: jdbc:postgresql://sys-postgres:5432/sys-job
-      TZ: Asia/Shanghai
-    volumes:
-      - ./sys-job:/opt/cowave/sys-job/log
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19040/job/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    depends_on:
-      sys-postgres:
-        condition: service_healthy
-      sys-nacos:
-        condition: service_healthy
-    networks:
-      default:
-        ipv4_address: 192.168.64.17
-
-  sys-postgres:
+  hub-postgres:
     image: postgres:13.1
-    container_name: sys-postgres
+    container_name: hub-postgres
     ports:
       - 5433:5432
     environment:
-      POSTGRES_PASSWORD: postgres
       TZ: Asia/Shanghai
+      POSTGRES_PASSWORD: postgres
     volumes:
       - ./postgres:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime
@@ -280,17 +290,17 @@ services:
       retries: 5
     networks:
       default:
-        ipv4_address: 192.168.64.21
+        ipv4_address: 10.64.32.21
 
-  sys-mysql:
+  hub-mysql:
     image: mysql:8.0.36
-    container_name: sys-mysql
+    container_name: hub-mysql
     privileged: true
     ports:
       - 3307:3306
     environment:
-      MYSQL_ROOT_PASSWORD: root
       TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: root
     volumes:
       - ./mysql/conf:/etc/mysql/conf.d
       - ./mysql/log:/var/log
@@ -303,11 +313,11 @@ services:
       retries: 10
     networks:
       default:
-        ipv4_address: 192.168.64.22
+        ipv4_address: 10.64.32.22
 
-  sys-elastic:
-    image: elastic/elasticsearch:7.14.0
-    container_name: sys-elastic
+  hub-elastic:
+    image: elastic/elasticsearch:7.17.3
+    container_name: hub-elastic
     ports:
       - 9200:9200
     environment:
@@ -326,11 +336,11 @@ services:
       retries: 5
     networks:
       default:
-        ipv4_address: 192.168.64.29
+        ipv4_address: 10.64.32.29
 
-  sys-redis:
+  hub-redis:
     image: redis:7.0
-    container_name: sys-redis
+    container_name: hub-redis
     privileged: true
     ports:
       - 6379:6379
@@ -346,11 +356,11 @@ services:
       retries: 3
     networks:
       default:
-        ipv4_address: 192.168.64.23
+        ipv4_address: 10.64.32.23
 
-  sys-minio:
+  hub-minio:
     image: minio/minio
-    container_name: sys-minio
+    container_name: hub-minio
     privileged: true
     ports:
       - 39000:9000
@@ -370,11 +380,11 @@ services:
       retries: 10
     networks:
       default:
-        ipv4_address: 192.168.64.24
+        ipv4_address: 10.64.32.24
 
-  sys-kafka1:
+  hub-kafka1:
     image: wurstmeister/kafka:2.13-2.8.1
-    container_name: sys-kafka1
+    container_name: hub-kafka1
     ports:
       - "9092:9092"
       - "9097:9097"
@@ -383,7 +393,7 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://10.64.4.74:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ZOOKEEPER_CONNECT: sys-zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: hub-zookeeper:2181
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE: true
       KAFKA_LOG_RETENTION_HOURS: 48
@@ -399,14 +409,14 @@ services:
       timeout: 3s
       retries: 10
     depends_on:
-      - sys-zookeeper
+      - hub-zookeeper
     networks:
       default:
-        ipv4_address: 192.168.64.25
+        ipv4_address: 10.64.32.25
 
-  sys-kafka2:
+  hub-kafka2:
     image: wurstmeister/kafka:2.13-2.8.1
-    container_name: sys-kafka2
+    container_name: hub-kafka2
     ports:
       - "9093:9093"
       - "9098:9098"
@@ -415,7 +425,7 @@ services:
       KAFKA_BROKER_ID: 2
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://10.64.4.74:9093
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9093
-      KAFKA_ZOOKEEPER_CONNECT: sys-zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: hub-zookeeper:2181
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE: true
       KAFKA_LOG_RETENTION_HOURS: 48
@@ -431,14 +441,14 @@ services:
       timeout: 3s
       retries: 10
     depends_on:
-      - sys-zookeeper
+      - hub-zookeeper
     networks:
       default:
-        ipv4_address: 192.168.64.26
+        ipv4_address: 10.64.32.26
 
-  sys-kafka3:
+  hub-kafka3:
     image: wurstmeister/kafka:2.13-2.8.1
-    container_name: sys-kafka3
+    container_name: hub-kafka3
     ports:
       - "9094:9094"
       - "9099:9099"
@@ -447,7 +457,7 @@ services:
       KAFKA_BROKER_ID: 3
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://10.64.4.74:9094
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094
-      KAFKA_ZOOKEEPER_CONNECT: sys-zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: hub-zookeeper:2181
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE: true
       KAFKA_LOG_RETENTION_HOURS: 48
@@ -463,14 +473,14 @@ services:
       timeout: 3s
       retries: 10
     depends_on:
-      - sys-zookeeper
+      - hub-zookeeper
     networks:
       default:
-        ipv4_address: 192.168.64.27
+        ipv4_address: 10.64.32.27
 
-  sys-zookeeper:
+  hub-zookeeper:
     image: wurstmeister/zookeeper:3.4.6
-    container_name: sys-zookeeper
+    container_name: hub-zookeeper
     ports:
       - "2181:2181"
     environment:
@@ -485,7 +495,7 @@ services:
       retries: 10
     networks:
       default:
-        ipv4_address: 192.168.64.28
+        ipv4_address: 10.64.32.28
 
   grafana:
     image: grafana/grafana:latest
@@ -499,7 +509,7 @@ services:
       - ./grafana/linux.json:/usr/share/grafana/public/dashboards/linux.json
     networks:
       default:
-        ipv4_address: 192.168.64.51
+        ipv4_address: 10.64.32.51
 
   prometheus:
     image: prom/prometheus:latest
@@ -514,7 +524,7 @@ services:
       - TZ=Asia/Shanghai
     networks:
       default:
-        ipv4_address: 192.168.64.52
+        ipv4_address: 10.64.32.52
 
   alertmanager:
     image: bitnami/alertmanager:0.26.0
@@ -529,7 +539,7 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
     networks:
       default:
-        ipv4_address: 192.168.64.53
+        ipv4_address: 10.64.32.53
 
   loki:
     image: grafana/loki
@@ -544,18 +554,18 @@ services:
     command: -config.file=/etc/loki/loki-config.yaml
     networks:
       default:
-        ipv4_address: 192.168.64.54
+        ipv4_address: 10.64.32.54
 
   promtail:
     image: grafana/promtail
     container_name: promtail
     volumes:
       - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml.yml
-      - .:/home/cowave/sys
+      - .:/opt/hub
     command: -config.file=/etc/promtail/promtail-config.yaml.yml
     networks:
       default:
-        ipv4_address: 192.168.64.55
+        ipv4_address: 10.64.32.55
 
   node-exporter:
     image: prom/node-exporter
@@ -572,7 +582,7 @@ services:
       - '--path.rootfs=/rootfs'
     networks:
       default:
-        ipv4_address: 192.168.64.61
+        ipv4_address: 10.64.32.61
 
   redis-exporter:
     image: oliver006/redis_exporter:latest
@@ -580,10 +590,10 @@ services:
     ports:
       - "9121:9121"
     environment:
-      - REDIS_ADDR=redis://sys-redis:6379
+      - REDIS_ADDR=redis://hub-redis:6379
     networks:
       default:
-        ipv4_address: 192.168.64.62
+        ipv4_address: 10.64.32.62
 
   mysql-exporter:
     image: prom/mysqld-exporter
@@ -595,12 +605,12 @@ services:
     command: --config.my-cnf=/etc/mysql/my.cnf
     networks:
       default:
-        ipv4_address: 192.168.64.63
+        ipv4_address: 10.64.32.63
 
 networks:
   default:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.64.0/24
-          gateway: 192.168.64.1
+        - subnet: 10.64.32.0/24
+          gateway: 10.64.32.1

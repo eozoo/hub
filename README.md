@@ -1,13 +1,11 @@
-[![Build Status](https://github.com/cowave5/sys/actions/workflows/maven.yml/badge.svg?branch=master)](https://github.com/cowave5/sys/actions)
+[![Build Status](https://github.com/eozoo/hub/actions/workflows/maven.yml/badge.svg?branch=master)](https://github.com/eozoo/hub/actions)
 ![Static Badge](https://img.shields.io/badge/Java-17-brightgreen)
 ![Maven central](https://img.shields.io/badge/release-1.0.3-brightgreen)
 [![License](https://img.shields.io/badge/license-Apache--2.0-brightgreen)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-## sys
+## Hub管理应用
 
-示例：通用管理系统
-
-> 开源项目参考：
+> 感谢开源项目：
 
 - 若依管理系统：https://github.com/yangzongzhuan/RuoYi-Vue
 - 若依工作流：https://gitee.com/shenzhanwang/Ruoyi-flowable

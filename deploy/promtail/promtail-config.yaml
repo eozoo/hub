@@ -9,22 +9,22 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-- job_name: log-sys
+- job_name: log-hub
   static_configs:
   - targets:
     - localhost
     labels:
-      job: log-sys
-      host: host-sys
-      cluster: sys
-      __path__: /home/cowave/sys/sys-*/*.log
+      job: log-hub
+      host: host-hub
+      cluster: hub
+      __path__: /home/cowave/hub/hub-*/*.log
   pipeline_stages:
     - match:
-        selector: '{job="log-sys"}'
+        selector: '{job="log-hub"}'
         stages:
         - regex:
            source: filename
-           expression: "/home/cowave/sys/(?P<application>\\S+?)/(?P<logger>[^/]+\\.log)$"
+           expression: "/home/cowave/hub/(?P<application>\\S+?)/(?P<logger>[^/]+\\.log)$"
         - labels:
             application:
             logger:
